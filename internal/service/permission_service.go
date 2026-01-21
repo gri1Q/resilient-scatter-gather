@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"math/rand"
+	"testGolang/internal/apperrors"
 	"testGolang/internal/dto"
 	"time"
 )
@@ -34,7 +35,7 @@ func (s *PermissionsService) CheckAccess(ctx context.Context, userID string) (*d
 	case <-timer.C:
 		return perm, err
 	case <-ctx.Done():
-		return nil, ctx.Err()
+		return nil, apperrors.ErrTimeout
 	}
 }
 

@@ -48,11 +48,9 @@ func (u *ChatHandler) GetChatSummary(c *gin.Context) {
 
 		us, err := u.userService.GetUser(uCtx, id)
 		if err != nil {
-			if errors.Is(err, context.DeadlineExceeded) {
-				return fmt.Errorf("user service timeout 10ms: %w", apperrors.ErrTimeout)
-			}
 			return fmt.Errorf("user service failed: %w", err)
 		}
+
 		userResp = us
 		return nil
 	})

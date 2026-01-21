@@ -16,6 +16,6 @@
 
 
 **
-гет запросы делать
+GET запросы
 localhost:8080/api/v1/chat/2/summary
 **

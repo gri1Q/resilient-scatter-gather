@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"math/rand"
+	"testGolang/internal/apperrors"
 	"testGolang/internal/dto"
 	"time"
 )
@@ -16,7 +17,6 @@ func NewUserService() *UserService {
 }
 
 // GetUser мок данные пользователя
-// вызывает внешний сервис
 func (s *UserService) GetUser(ctx context.Context, userID string) (*dto.UserResponse, error) {
 	//случайную задержку от 10 до 14
 	duration := time.Duration(rand.Intn(14)) * time.Millisecond
@@ -36,7 +36,7 @@ func (s *UserService) GetUser(ctx context.Context, userID string) (*dto.UserResp
 		user := s.mockGetUser(userID)
 		return user, nil
 	case <-ctx.Done():
-		return nil, ctx.Err()
+		return nil, apperrors.ErrTimeout
 	}
 }
 

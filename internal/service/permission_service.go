@@ -18,10 +18,10 @@ func NewPermissionsService() *PermissionsService {
 // CheckAccess обращение к внешнему сервису, чтобы получить права пользователя
 func (s *PermissionsService) CheckAccess(ctx context.Context, userID string) (*dto.PermissionsResponse, error) {
 	duration := time.Duration(rand.Intn(70)) * time.Millisecond
-	sleep, err := s.mockGetPermissionsUser(userID)
+	perm, err := s.mockGetPermissionsUser(userID)
 	select {
 	case <-time.After(duration):
-		return sleep, err
+		return perm, err
 	case <-ctx.Done():
 		return nil, ctx.Err()
 	}

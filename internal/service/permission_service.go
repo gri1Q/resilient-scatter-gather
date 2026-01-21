@@ -31,7 +31,7 @@ func (s *PermissionsService) CheckAccess(ctx context.Context, userID string) (*d
 func (u *PermissionsService) mockGetPermissionsUser(userID string) (*dto.PermissionsResponse, error) {
 
 	r := rand.New(rand.NewSource(time.Now().UnixNano()))
-	check := r.Intn(2) == 1 // true или false
+	check := r.Intn(2) == 1
 	return &dto.PermissionsResponse{
 		CheckAccess: check,
 	}, nil

@@ -17,12 +17,12 @@ func NewVectorMemoryService() *VectorMemoryService {
 // GetContext время ответа от 100мс до 400 мс для ловли ошибки
 func (v *VectorMemoryService) GetContext(ctx context.Context, userID string) (string, error) {
 	// симулируем случайную задержку 100ms - 3c
+	//сделал специально до 400 мс, чтобы больше вероятность была попасть с вектором
 	r := rand.New(rand.NewSource(time.Now().UnixNano()))
 	delay := time.Duration(100+r.Intn(300)) * time.Millisecond
 
 	select {
 	case <-time.After(delay):
-		// иногда падаем
 		if r.Intn(10) == 0 {
 			return "", errors.New("vector memory internal error")
 		}

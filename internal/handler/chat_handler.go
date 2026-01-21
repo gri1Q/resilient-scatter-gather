@@ -3,6 +3,7 @@ package handler
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net/http"
 	"testGolang/internal/apperrors"
 	"testGolang/internal/dto"
@@ -19,7 +20,6 @@ type ChatSummaryResponse struct {
 	Vector      *string                  `json:"vector,omitempty"`
 }
 
-// ChatHandler обработчик маршрута
 type ChatHandler struct {
 	userService         *service.UserService
 	permissionsService  *service.PermissionsService
@@ -43,31 +43,29 @@ func (u *ChatHandler) GetChatSummary(c *gin.Context) {
 	var permissionsResp *dto.PermissionsResponse
 
 	g.Go(func() error {
-		//если запрос к пользователю не уложился за 10 мс то таймаут
 		uCtx, uCancel := context.WithTimeout(gCtx, 10*time.Millisecond)
 		defer uCancel()
 
 		us, err := u.userService.GetUser(uCtx, id)
 		if err != nil {
 			if errors.Is(err, context.DeadlineExceeded) {
-				return apperrors.Wrap(apperrors.ErrTimeout, "user service timeout 10ms")
+				return fmt.Errorf("user service timeout 10ms: %w", apperrors.ErrTimeout)
 			}
-			return apperrors.Wrap(err, "user service failed")
+			return fmt.Errorf("user service failed: %w", err)
 		}
 		userResp = us
 		return nil
 	})
 
 	g.Go(func() error {
-		//Делаем индивидуальный контекст, что если запрос к правам не уложился за 50 мс то таймаут
 		pCtx, pCancel := context.WithTimeout(gCtx, 50*time.Millisecond)
 		defer pCancel()
 		perm, err := u.permissionsService.CheckAccess(pCtx, id)
 		if err != nil {
 			if errors.Is(err, context.DeadlineExceeded) {
-				return apperrors.Wrap(apperrors.ErrTimeout, "permissions service timeout 50ms")
+				return fmt.Errorf("permissions service timeout 50ms: %w", apperrors.ErrTimeout)
 			}
-			return apperrors.Wrap(err, "permissions service failed")
+			return fmt.Errorf("permissions service failed: %w", err)
 		}
 		permissionsResp = perm
 		return nil
@@ -88,35 +86,24 @@ func (u *ChatHandler) GetChatSummary(c *gin.Context) {
 	err := g.Wait()
 
 	if err != nil {
-		var appErr *apperrors.AppError
-
-		if errors.As(err, &appErr) {
-			if errors.Is(appErr, apperrors.ErrTimeout) {
-				// конкретный таймаут сервиса
-				c.JSON(http.StatusInternalServerError, gin.H{
-					"error":   "timeout",
-					"message": appErr.Error(), // покажет что именно таймаут User или Permissions
-				})
-				return
-			}
-			if errors.Is(appErr, apperrors.ErrNotFound) {
-				c.JSON(http.StatusNotFound, gin.H{"error": "not_found", "message": appErr.Error()})
-				return
-			}
-			if errors.Is(appErr, apperrors.ErrPermission) {
-				c.JSON(http.StatusForbidden, gin.H{"error": "forbidden", "message": appErr.Error()})
-				return
-			}
-
-			// Другие ошибки — 500
+		// Проверяем sentinel errors через errors.Is — это работает с fmt.Errorf("...: %w", sentinel)
+		if errors.Is(err, apperrors.ErrTimeout) {
 			c.JSON(http.StatusInternalServerError, gin.H{
-				"error":   "internal_error",
-				"message": appErr.Error(),
+				"error":   "timeout",
+				"message": err.Error(), // содержит текст-обёртку
 			})
 			return
 		}
+		if errors.Is(err, apperrors.ErrNotFound) {
+			c.JSON(http.StatusNotFound, gin.H{"error": "not_found", "message": err.Error()})
+			return
+		}
+		if errors.Is(err, apperrors.ErrPermission) {
+			c.JSON(http.StatusForbidden, gin.H{"error": "forbidden", "message": err.Error()})
+			return
+		}
 
-		// fallback — внутренняя ошибка
+		// другие ошибки — Internal Server Error
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"error":   "internal_error",
 			"message": err.Error(),
@@ -124,7 +111,6 @@ func (u *ChatHandler) GetChatSummary(c *gin.Context) {
 		return
 	}
 
-	// Пытаемся считать vector, если он уже пришёл.
 	var vectorResp *string
 	select {
 	case v := <-vectorChannel:

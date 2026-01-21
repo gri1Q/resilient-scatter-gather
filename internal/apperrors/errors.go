@@ -19,9 +19,6 @@ type ValidationError struct {
 }
 
 func (v *ValidationError) Error() string {
-	if v == nil {
-		return "<nil>"
-	}
 	if v.Field != "" {
 		return fmt.Sprintf("validation failed: %s: %s", v.Field, v.Message)
 	}

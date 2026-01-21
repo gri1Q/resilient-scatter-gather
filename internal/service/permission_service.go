@@ -34,6 +34,9 @@ func (s *PermissionsService) CheckAccess(ctx context.Context, userID string) (*d
 
 	select {
 	case <-timer.C:
+		if !perm.CheckAccess {
+			return nil, fmt.Errorf("user does not have access: %w", apperrors.ErrPermission)
+		}
 		return perm, err
 	case <-ctx.Done():
 		return nil, fmt.Errorf("user permissions exceeded 10ms: %w", apperrors.ErrTimeout)

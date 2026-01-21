@@ -86,11 +86,10 @@ func (u *ChatHandler) GetChatSummary(c *gin.Context) {
 	err := g.Wait()
 
 	if err != nil {
-		// Проверяем sentinel errors через errors.Is — это работает с fmt.Errorf("...: %w", sentinel)
 		if errors.Is(err, apperrors.ErrTimeout) {
 			c.JSON(http.StatusInternalServerError, gin.H{
 				"error":   "timeout",
-				"message": err.Error(), // содержит текст-обёртку
+				"message": err.Error(),
 			})
 			return
 		}

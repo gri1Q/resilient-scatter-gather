@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"fmt"
 	"math/rand"
 	"testGolang/internal/apperrors"
 	"testGolang/internal/dto"
@@ -35,7 +36,7 @@ func (s *PermissionsService) CheckAccess(ctx context.Context, userID string) (*d
 	case <-timer.C:
 		return perm, err
 	case <-ctx.Done():
-		return nil, apperrors.ErrTimeout
+		return nil, fmt.Errorf("user permissions exceeded 10ms: %w", apperrors.ErrTimeout)
 	}
 }
 

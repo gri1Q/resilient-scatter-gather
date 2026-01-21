@@ -3,7 +3,6 @@ package handler
 import (
 	"context"
 	"errors"
-	"fmt"
 	"net/http"
 	"testGolang/internal/apperrors"
 	"testGolang/internal/dto"
@@ -48,7 +47,7 @@ func (u *ChatHandler) GetChatSummary(c *gin.Context) {
 
 		us, err := u.userService.GetUser(uCtx, id)
 		if err != nil {
-			return fmt.Errorf("user service failed: %w", err)
+			return err
 		}
 
 		userResp = us
@@ -59,12 +58,11 @@ func (u *ChatHandler) GetChatSummary(c *gin.Context) {
 		pCtx, pCancel := context.WithTimeout(gCtx, 50*time.Millisecond)
 		defer pCancel()
 		perm, err := u.permissionsService.CheckAccess(pCtx, id)
+
 		if err != nil {
-			if errors.Is(err, context.DeadlineExceeded) {
-				return fmt.Errorf("permissions service timeout 50ms: %w", apperrors.ErrTimeout)
-			}
-			return fmt.Errorf("permissions service failed: %w", err)
+			return err
 		}
+
 		permissionsResp = perm
 		return nil
 	})

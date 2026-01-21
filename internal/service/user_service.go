@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"fmt"
 	"math/rand"
 	"testGolang/internal/apperrors"
 	"testGolang/internal/dto"
@@ -36,7 +37,7 @@ func (s *UserService) GetUser(ctx context.Context, userID string) (*dto.UserResp
 		user := s.mockGetUser(userID)
 		return user, nil
 	case <-ctx.Done():
-		return nil, apperrors.ErrTimeout
+		return nil, fmt.Errorf("user service exceeded 10ms: %w", apperrors.ErrTimeout)
 	}
 }
 

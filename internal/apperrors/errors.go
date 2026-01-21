@@ -10,8 +10,6 @@ var (
 	ErrNotFound   = errors.New("not found")
 	ErrPermission = errors.New("permission denied")
 	ErrTimeout    = errors.New("timeout")
-	ErrInternal   = errors.New("internal error")
-	ErrBadRequest = errors.New("bad request")
 )
 
 // ValidationError — конкретная ошибка валидации поля

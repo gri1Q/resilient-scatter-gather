@@ -19,8 +19,19 @@ func NewPermissionsService() *PermissionsService {
 func (s *PermissionsService) CheckAccess(ctx context.Context, userID string) (*dto.PermissionsResponse, error) {
 	duration := time.Duration(rand.Intn(70)) * time.Millisecond
 	perm, err := s.mockGetPermissionsUser(userID)
+
+	timer := time.NewTimer(duration)
+	defer func() {
+		if !timer.Stop() {
+			select {
+			case <-timer.C:
+			default:
+			}
+		}
+	}()
+
 	select {
-	case <-time.After(duration):
+	case <-timer.C:
 		return perm, err
 	case <-ctx.Done():
 		return nil, ctx.Err()

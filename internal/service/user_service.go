@@ -18,10 +18,10 @@ func NewUserService() *UserService {
 // GetUser мок данные пользователя
 // вызывает внешний сервис
 func (s *UserService) GetUser(ctx context.Context, userID string) (*dto.UserResponse, error) {
-	//случайную задержку от 10 до 50 мс
-	sleep := time.Duration(10+rand.Intn(41)) * time.Millisecond
+	//случайную задержку от 10 до 14
+	duration := time.Duration(rand.Intn(15)) * time.Millisecond
 	select {
-	case <-time.After(sleep):
+	case <-time.After(duration):
 		user := s.mockGetUser(userID)
 		return user, nil
 	case <-ctx.Done():

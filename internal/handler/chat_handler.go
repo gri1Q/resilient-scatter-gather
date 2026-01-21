@@ -33,17 +33,25 @@ func NewChatHandler(userService *service.UserService, permissionsService *servic
 // GetChatSummary получаем сводку по чату
 func (u *ChatHandler) GetChatSummary(c *gin.Context) {
 	id := c.Param("id")
+
 	ctx, cancel := context.WithTimeout(c.Request.Context(), 200*time.Millisecond)
 	defer cancel()
 
-	g, ctx := errgroup.WithContext(ctx)
+	g, gCtx := errgroup.WithContext(ctx)
 
 	var userResp *dto.UserResponse
 	var permissionsResp *dto.PermissionsResponse
 
 	g.Go(func() error {
-		us, err := u.userService.GetUser(ctx, id)
+		//если запрос к пользователю не уложился за 10 мс то таймаут
+		uCtx, uCancel := context.WithTimeout(gCtx, 10*time.Millisecond)
+		defer uCancel()
+
+		us, err := u.userService.GetUser(uCtx, id)
 		if err != nil {
+			if errors.Is(err, context.DeadlineExceeded) {
+				return apperrors.Wrap(apperrors.ErrTimeout, "user service timeout 10ms")
+			}
 			return apperrors.Wrap(err, "user service failed")
 		}
 		userResp = us
@@ -51,8 +59,14 @@ func (u *ChatHandler) GetChatSummary(c *gin.Context) {
 	})
 
 	g.Go(func() error {
-		perm, err := u.permissionsService.CheckAccess(ctx, id)
+		//Делаем индивидуальный контекст, что если запрос к правам не уложился за 50 мс то таймаут
+		pCtx, pCancel := context.WithTimeout(gCtx, 50*time.Millisecond)
+		defer pCancel()
+		perm, err := u.permissionsService.CheckAccess(pCtx, id)
 		if err != nil {
+			if errors.Is(err, context.DeadlineExceeded) {
+				return apperrors.Wrap(apperrors.ErrTimeout, "permissions service timeout 50ms")
+			}
 			return apperrors.Wrap(err, "permissions service failed")
 		}
 		permissionsResp = perm
@@ -62,11 +76,12 @@ func (u *ChatHandler) GetChatSummary(c *gin.Context) {
 	vectorChannel := make(chan string)
 	go func() {
 		vector, err := u.vectorMemoryService.GetContext(ctx, id)
-		if err == nil {
-			select {
-			case vectorChannel <- vector:
-			default:
-			}
+		if err != nil {
+			return
+		}
+		select {
+		case vectorChannel <- vector:
+		case <-ctx.Done():
 		}
 	}()
 
@@ -75,16 +90,15 @@ func (u *ChatHandler) GetChatSummary(c *gin.Context) {
 	if err != nil {
 		var appErr *apperrors.AppError
 
-		// Если это контекстный таймаут (context deadline exceeded)
-		if errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled) {
-			c.JSON(http.StatusInternalServerError, gin.H{
-				"error":   "timeout",
-				"message": "выполнение больше 200 мс",
-			})
-			return
-		}
-
 		if errors.As(err, &appErr) {
+			if errors.Is(appErr, apperrors.ErrTimeout) {
+				// конкретный таймаут сервиса
+				c.JSON(http.StatusInternalServerError, gin.H{
+					"error":   "timeout",
+					"message": appErr.Error(), // покажет что именно таймаут User или Permissions
+				})
+				return
+			}
 			if errors.Is(appErr, apperrors.ErrNotFound) {
 				c.JSON(http.StatusNotFound, gin.H{"error": "not_found", "message": appErr.Error()})
 				return
@@ -115,7 +129,8 @@ func (u *ChatHandler) GetChatSummary(c *gin.Context) {
 	select {
 	case v := <-vectorChannel:
 		vectorResp = &v
-	default:
+	case <-ctx.Done():
+		vectorResp = nil
 	}
 
 	resp := ChatSummaryResponse{
